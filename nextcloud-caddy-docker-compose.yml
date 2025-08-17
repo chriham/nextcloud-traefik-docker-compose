@@ -61,7 +61,11 @@ services:
       POSTGRES_USER: ${NEXTCLOUD_DB_USER}
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
     secrets:
-      - postgres_password
+      - source: postgres_password
+        target: postgres_password
+        uid: '999'    # postgres user
+        gid: '999'    # postgres group  
+        mode: 0400
     networks:
       - nextcloud-network
     healthcheck:
@@ -80,7 +84,11 @@ services:
     volumes:
       - redis-data:/data
     secrets:
-      - redis_password
+      - source: redis_password
+        target: redis_password
+        uid: '999'    # redis user
+        gid: '999'    # redis group
+        mode: 0400
     networks:
       - nextcloud-network
     healthcheck:
@@ -161,9 +169,21 @@ services:
       default_phone_region: DE
       mail_smtpmode: smtp
     secrets:
-      - postgres_password
-      - redis_password
-      - nextcloud_admin_password
+      - source: postgres_password
+        target: postgres_password
+        uid: '33'     # www-data user
+        gid: '33'     # www-data group
+        mode: 0400
+      - source: redis_password
+        target: redis_password
+        uid: '33'     # www-data user
+        gid: '33'     # www-data group
+        mode: 0400
+      - source: nextcloud_admin_password
+        target: nextcloud_admin_password
+        uid: '33'     # www-data user
+        gid: '33'     # www-data group
+        mode: 0400
     networks:
       - nextcloud-network
     healthcheck:

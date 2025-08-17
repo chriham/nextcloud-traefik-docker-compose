@@ -1022,7 +1022,7 @@ nextcloud_setup() {
     REDIS_PASSWORD=$(generate_password)
     ADMIN_PASSWORD=$(generate_password)
 
-    # Speichere Passwörter in secrets
+    # Speichere Passwörter in secrets (für Backup-Zwecke)
     echo "$DB_PASSWORD" > "$SECRETS_DIR/postgres_password.txt"
     echo "$REDIS_PASSWORD" > "$SECRETS_DIR/redis_password.txt"
     echo "$ADMIN_PASSWORD" > "$SECRETS_DIR/nextcloud_admin_password.txt"
@@ -1076,6 +1076,8 @@ REDIS_GROUP_ID=1001
 # Pfade
 SECRETS_DIR=$SECRETS_DIR
 BACKUP_DIR=$BACKUP_DIR
+
+# Passwörter werden über Docker Secrets verwaltet (nicht in .env)
 
 TRUSTED_PROXIES=172.16.0.0/12
 
@@ -1426,6 +1428,8 @@ start_nextcloud() {
         if ! ls "./secrets"/*.txt &>/dev/null; then
             log_warning "Secrets-Symlink existiert, aber keine Secret-Dateien gefunden"
             log_info "Secrets-Verzeichnis: $(readlink -f ./secrets 2>/dev/null || echo 'Fehler beim Lesen des Symlinks')"
+        else
+            log_success "✓ Secrets-Symlink funktioniert"
         fi
     fi
     
