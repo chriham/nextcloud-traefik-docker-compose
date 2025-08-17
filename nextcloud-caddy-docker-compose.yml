@@ -220,25 +220,27 @@ services:
   # Einrichtung: ./nextcloud-manager.sh setup
 
   # Nextcloud Notify Push Service (separater Container)
-  notify_push:
-    image: ${NEXTCLOUD_FPM_IMAGE_TAG}  # Gleiches Image wie Nextcloud
-    # user: "${NEXTCLOUD_USER_ID}:${NEXTCLOUD_GROUP_ID}"  # Entfernt für Konsistenz
-    restart: unless-stopped
-    depends_on:
-      app:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      - PORT=7867
-      - NEXTCLOUD_URL=http://web  # Direkte Verbindung zum Nextcloud-Container
-    entrypoint: /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push /var/www/html/config/config.php
-    volumes:
-      - nextcloud-apps:/var/www/html/custom_apps
-      - nextcloud-config:/var/www/html/config
-    networks:
-      - nextcloud-network
-      - caddy-network
+  # HINWEIS: Dieser Container ist deaktiviert bis notify_push App installiert ist
+  # Nach der Installation: ./nextcloud-manager.sh setup (führt notify_push Installation durch)
+  #
+  # notify_push:
+  #   image: ${NEXTCLOUD_FPM_IMAGE_TAG}
+  #   restart: unless-stopped
+  #   depends_on:
+  #     app:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   environment:
+  #     - PORT=7867
+  #     - NEXTCLOUD_URL=http://web
+  #   entrypoint: /var/www/html/custom_apps/notify_push/bin/x86_64/notify_push /var/www/html/config/config.php
+  #   volumes:
+  #     - nextcloud-apps:/var/www/html/custom_apps
+  #     - nextcloud-config:/var/www/html/config
+  #   networks:
+  #     - nextcloud-network
+  #     - caddy-network
 
   # Imaginary für Vorschaubilder
   imaginary:
