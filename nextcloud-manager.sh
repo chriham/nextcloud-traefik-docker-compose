@@ -1110,14 +1110,17 @@ EOF
     if [[ "$DATABASE_TYPE" == "external" ]]; then
         echo "1. Stellen Sie sicher, dass die externe Datenbank läuft und erreichbar ist"
         echo "2. Erstellen Sie die Datenbank '$DB_NAME' und den Benutzer '$DB_USER'"
-        echo "3. Starten Sie Nextcloud ohne PostgreSQL: docker-compose -f nextcloud-caddy-docker-compose.yml up -d"
+        echo "3. Starten Sie Nextcloud ohne PostgreSQL: docker compose -f nextcloud-caddy-docker-compose.yml up -d"
     else
-        echo "1. Starten Sie Nextcloud mit PostgreSQL: docker-compose -f nextcloud-caddy-docker-compose.yml --profile docker-db up -d"
+        echo "1. Starten Sie Nextcloud mit PostgreSQL: docker compose -f nextcloud-caddy-docker-compose.yml --profile docker-db up -d"
     fi
 
-    echo "2. Warten Sie bis alle Container gestartet sind (docker-compose logs -f)"
-    echo "3. Öffnen Sie https://$DOMAIN in Ihrem Browser"
-    echo "4. Loggen Sie sich mit Benutzername '$ADMIN_USER' und dem generierten Passwort ein"
+    echo "2. Warten Sie bis alle Container gestartet sind ($DOCKER_COMPOSE logs -f)"
+    echo "3. Aktivieren Sie Notify Push für bessere Performance:"
+    echo "   $DOCKER_COMPOSE exec app php occ app:enable notify_push"
+    echo "   $DOCKER_COMPOSE exec app php occ notify_push:setup https://$DOMAIN/push"
+    echo "4. Öffnen Sie https://$DOMAIN in Ihrem Browser"
+    echo "5. Loggen Sie sich mit Benutzername '$ADMIN_USER' und dem generierten Passwort ein"
     echo ""
     echo -e "${GREEN}Passwörter wurden in $SECRETS_DIR/ gespeichert - bewahren Sie diese sicher auf!${NC}"
 

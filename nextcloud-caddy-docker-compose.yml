@@ -173,7 +173,7 @@ services:
   # Script: nextcloud-cron-host.sh
   # Einrichtung: ./nextcloud-manager.sh setup
 
-  # Nextcloud Notify Push Service
+  # Nextcloud Notify Push Service (separater Container)
   notify_push:
     image: ${NOTIFY_PUSH_IMAGE_TAG}
     environment:
