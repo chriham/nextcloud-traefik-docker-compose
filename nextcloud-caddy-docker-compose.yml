@@ -94,13 +94,13 @@ services:
   # Nextcloud FPM Container
   app:
     image: ${NEXTCLOUD_FPM_IMAGE_TAG}
-    user: "${NEXTCLOUD_USER_ID}:${NEXTCLOUD_GROUP_ID}"
+    # user: "${NEXTCLOUD_USER_ID}:${NEXTCLOUD_GROUP_ID}"  # Entfernt für bessere Volume-Berechtigungen
     volumes:
       - nextcloud-data:/var/www/html
       - nextcloud-apps:/var/www/html/custom_apps
       - nextcloud-config:/var/www/html/config
       - ${NEXTCLOUD_DATA_DIR}:/var/www/html/data
-      - ./nextcloud.env:/var/www/html/.env
+      - ./nextcloud.env:/var/www/html/.env:ro  # Read-only mount
     environment:
       POSTGRES_HOST: ${DB_HOST}
       POSTGRES_DB: ${NEXTCLOUD_DB_NAME}
@@ -185,7 +185,7 @@ services:
   # Nextcloud Notify Push Service (separater Container)
   notify_push:
     image: ${NEXTCLOUD_FPM_IMAGE_TAG}  # Gleiches Image wie Nextcloud
-    user: "${NEXTCLOUD_USER_ID}:${NEXTCLOUD_GROUP_ID}"
+    # user: "${NEXTCLOUD_USER_ID}:${NEXTCLOUD_GROUP_ID}"  # Entfernt für Konsistenz
     restart: unless-stopped
     depends_on:
       app:
@@ -206,7 +206,7 @@ services:
   # Imaginary für Vorschaubilder
   imaginary:
     image: ${IMAGINARY_IMAGE_TAG}
-    user: "${NEXTCLOUD_USER_ID}:${NEXTCLOUD_GROUP_ID}"
+    # user: "${NEXTCLOUD_USER_ID}:${NEXTCLOUD_GROUP_ID}"  # Entfernt für Konsistenz
     environment:
       PORT: 9000
     networks:

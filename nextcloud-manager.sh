@@ -1000,9 +1000,20 @@ nextcloud_setup() {
         log_success "Symlink erstellt: ./secrets -> $SECRETS_DIR"
     fi
     
-    # Setze korrekte Berechtigungen für User-Verzeichnisse
+    # Setze Berechtigungen für Nextcloud-Container (läuft als www-data UID 33)
+    log_info "Setze Berechtigungen für Nextcloud Container (www-data)..."
+    
+    # Nextcloud Container läuft als www-data (UID 33, GID 33)
+    # Data Directory muss für www-data schreibbar sein
+    sudo chown -R 33:33 "$DATA_DIR" 2>/dev/null || {
+        # Fallback: Setze 777 Berechtigungen falls chown nicht funktioniert
+        log_warning "chown fehlgeschlagen, setze 777 Berechtigungen..."
+        chmod -R 777 "$DATA_DIR" 2>/dev/null || true
+    }
+    
+    # Backup und Secrets für aktuellen User behalten
     if [[ "$NC_USER" != "root" && "$NC_USER" != "$CURRENT_USER" ]]; then
-        sudo chown -R "$NC_UID:$NC_GID" "$DATA_DIR" "$BACKUP_DIR" "$SECRETS_DIR" 2>/dev/null || true
+        sudo chown -R "$NC_UID:$NC_GID" "$BACKUP_DIR" "$SECRETS_DIR" 2>/dev/null || true
     fi
 
     # Generiere Passwörter
