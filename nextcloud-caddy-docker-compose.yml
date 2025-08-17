@@ -30,6 +30,8 @@ networks:
 
 volumes:
   nextcloud-data:
+  nextcloud-apps:      # Für custom_apps (notify_push)
+  nextcloud-config:    # Für Nextcloud config.php
   redis-data:
   nextcloud-postgres:
   nextcloud-postgres-backup:
@@ -95,6 +97,8 @@ services:
     user: "${NEXTCLOUD_USER_ID}:${NEXTCLOUD_GROUP_ID}"
     volumes:
       - nextcloud-data:/var/www/html
+      - nextcloud-apps:/var/www/html/custom_apps
+      - nextcloud-config:/var/www/html/config
       - ${NEXTCLOUD_DATA_DIR}:/var/www/html/data
       - ./nextcloud.env:/var/www/html/.env
     environment:
@@ -129,12 +133,17 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
+        required: false  # Nur wenn docker-db Profil aktiv
 
   # Caddy Webserver für Nextcloud FPM
   web:
     image: ${CADDY_IMAGE_TAG}
     volumes:
       - nextcloud-data:/var/www/html:ro
+      - nextcloud-apps:/var/www/html/custom_apps:ro
+      - nextcloud-config:/var/www/html/config:ro
       - ${NEXTCLOUD_DATA_DIR}:/var/www/html/data:ro
       - ./Caddyfile.nextcloud:/etc/caddy/Caddyfile
       - caddy-data:/data
@@ -181,6 +190,8 @@ services:
     depends_on:
       app:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       - PORT=7867
       - NEXTCLOUD_URL=http://web  # Direkte Verbindung zum Nextcloud-Container
@@ -195,46 +206,23 @@ services:
   # Imaginary für Vorschaubilder
   imaginary:
     image: ${IMAGINARY_IMAGE_TAG}
+    user: "${NEXTCLOUD_USER_ID}:${NEXTCLOUD_GROUP_ID}"
     environment:
       PORT: 9000
     networks:
       - nextcloud-network
     restart: unless-stopped
     command: -enable-url-source -return-size
+    depends_on:
+      app:
+        condition: service_healthy
 
-  # Backup Service
-  backups:
-    image: ${NEXTCLOUD_POSTGRES_IMAGE_TAG}
-    profiles:
-      - docker-db
-    command: >-
-      sh -c 'sleep $BACKUP_INIT_SLEEP &&
-      while true; do
-        pg_dump -h ${DB_HOST} -p 5432 -d $NEXTCLOUD_DB_NAME -U $NEXTCLOUD_DB_USER | gzip > $POSTGRES_BACKUPS_PATH/$POSTGRES_BACKUP_NAME-$(date "+%Y-%m-%d_%H-%M").gz &&
-        tar -zcpf $DATA_BACKUPS_PATH/$DATA_BACKUP_NAME-$(date "+%Y-%m-%d_%H-%M").tar.gz $DATA_PATH &&
-        find $POSTGRES_BACKUPS_PATH -type f -mtime +$POSTGRES_BACKUP_PRUNE_DAYS | xargs rm -f &&
-        find $DATA_BACKUPS_PATH -type f -mtime +$DATA_BACKUP_PRUNE_DAYS | xargs rm -f;
-        sleep $BACKUP_INTERVAL; done'
-    volumes:
-      - nextcloud-postgres-backup:/var/lib/postgresql/data
-      - ${NEXTCLOUD_DATA_DIR}:${DATA_PATH}
-      - nextcloud-data-backups:${DATA_BACKUPS_PATH}
-      - nextcloud-database-backups:${POSTGRES_BACKUPS_PATH}
-    environment:
-      NEXTCLOUD_DB_NAME: ${NEXTCLOUD_DB_NAME}
-      NEXTCLOUD_DB_USER: ${NEXTCLOUD_DB_USER}
-      PGPASSWORD_FILE: /run/secrets/postgres_password
-      BACKUP_INIT_SLEEP: ${BACKUP_INIT_SLEEP}
-      BACKUP_INTERVAL: ${BACKUP_INTERVAL}
-      POSTGRES_BACKUP_PRUNE_DAYS: ${POSTGRES_BACKUP_PRUNE_DAYS}
-      DATA_BACKUP_PRUNE_DAYS: ${DATA_BACKUP_PRUNE_DAYS}
-      POSTGRES_BACKUPS_PATH: ${POSTGRES_BACKUPS_PATH}
-      DATA_BACKUPS_PATH: ${DATA_BACKUPS_PATH}
-      DATA_PATH: ${DATA_PATH}
-      POSTGRES_BACKUP_NAME: ${POSTGRES_BACKUP_NAME}
-      DATA_BACKUP_NAME: ${DATA_BACKUP_NAME}
-    secrets:
-      - postgres_password
-    networks:
-      - nextcloud-network
-    restart: unless-stopped
+  # Backup Service (wird durch externe Scripts ersetzt)
+  # HINWEIS: Backups werden über nextcloud-backup.sh Script ausgeführt
+  # Dieser Container ist deaktiviert, da externe Scripts flexibler sind
+  #
+  # backups:
+  #   image: ${NEXTCLOUD_POSTGRES_IMAGE_TAG}
+  #   profiles:
+  #     - docker-db
+  #   ... (siehe nextcloud-backup.sh für vollständige Backup-Lösung)
