@@ -12,14 +12,8 @@
         format console
     }
 
-    # Rate limiting (optional)
-    rate_limit {
-        zone nextcloud {
-            key {remote_host}
-            events 100
-            window 1m
-        }
-    }
+    # Rate limiting entfernt - Standard Caddy unterstützt rate_limit Plugin nicht
+    # Alternative: Verwende Cloudflare, nginx oder einen Load Balancer für Rate Limiting
 
     # Security Headers (zusätzlich zu denen im Backend)
     header {
