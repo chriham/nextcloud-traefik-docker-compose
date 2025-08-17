@@ -51,12 +51,21 @@ show_usage() {
     echo ""
     echo "Usage: $0 [action]"
     echo ""
-    echo "Aktionen:"
+    echo "=== SETUP & KONFIGURATION ==="
     echo "  setup           Vollständiges Nextcloud-Setup"
     echo "  setup-gpg       GPG-Verschlüsselung für Backups einrichten"
     echo "  import-keys     GPG-Schlüssel importieren"
     echo "  secure-secrets  Secrets-Management"
     echo "  setup-cron      Host-System Cron einrichten"
+    echo ""
+    echo "=== CONTAINER MANAGEMENT ==="
+    echo "  start           Nextcloud Container starten"
+    echo "  stop            Nextcloud Container stoppen"
+    echo "  restart         Nextcloud Container neustarten"
+    echo "  ps              Container Status anzeigen"
+    echo "  logs            Container Logs anzeigen (live)"
+    echo ""
+    echo "=== SYSTEM & HILFE ==="
     echo "  status          System-Status anzeigen"
     echo "  test-config     Konfiguration testen"
     echo "  interactive     Interaktives Menü (Standard)"
@@ -64,7 +73,10 @@ show_usage() {
     echo "Beispiele:"
     echo "  $0                    # Interaktives Menü"
     echo "  $0 setup              # Vollständiges Setup"
-    echo "  $0 import-keys        # GPG-Schlüssel importieren"
+    echo "  $0 start              # Container starten"
+    echo "  $0 stop               # Container stoppen"
+    echo "  $0 logs               # Live-Logs anzeigen"
+    echo "  $0 ps                 # Container Status"
     echo "  $0 status             # System-Status"
 }
 
@@ -1293,11 +1305,15 @@ test_configuration() {
     
     # Test 3: Docker Networks
     ((tests_total++))
-    if docker network inspect caddy-network &>/dev/null && docker network inspect nextcloud-network &>/dev/null; then
-        log_success "✓ Docker Networks vorhanden"
-        ((tests_passed++))
+    if command -v docker &>/dev/null; then
+        if docker network inspect caddy-network &>/dev/null && docker network inspect nextcloud-network &>/dev/null; then
+            log_success "✓ Docker Networks vorhanden"
+            ((tests_passed++))
+        else
+            log_error "✗ Docker Networks fehlen"
+        fi
     else
-        log_error "✗ Docker Networks fehlen"
+        log_warning "✗ Docker nicht verfügbar - Networks können nicht geprüft werden"
     fi
     
     # Test 4: GPG (falls aktiviert)
@@ -1329,6 +1345,142 @@ test_configuration() {
 }
 
 # =============================================================================
+# CONTAINER MANAGEMENT FUNKTIONEN
+# =============================================================================
+
+# Funktion: Nextcloud starten
+start_nextcloud() {
+    log_info "Starte Nextcloud Container..."
+    
+    # Docker Compose Command detection
+    local DOCKER_COMPOSE=""
+    if docker compose version &> /dev/null; then
+        DOCKER_COMPOSE="docker compose"
+    elif command -v docker-compose &> /dev/null; then
+        DOCKER_COMPOSE="docker-compose"
+    else
+        log_error "Docker Compose ist nicht verfügbar!"
+        return 1
+    fi
+    
+    # Prüfe ob .env existiert
+    if [[ ! -f ".env" ]]; then
+        log_error ".env Datei nicht gefunden! Führe erst das Setup aus."
+        return 1
+    fi
+    
+    # Lade .env um USE_DOCKER_DB zu prüfen
+    source .env
+    
+    # Starte Container basierend auf DB-Konfiguration
+    if [[ "${USE_DOCKER_DB:-false}" == "true" ]]; then
+        log_info "Starte mit Docker PostgreSQL..."
+        $DOCKER_COMPOSE -f nextcloud-caddy-docker-compose.yml --profile docker-db up -d
+    else
+        log_info "Starte ohne Docker PostgreSQL (externe DB)..."
+        $DOCKER_COMPOSE -f nextcloud-caddy-docker-compose.yml up -d
+    fi
+    
+    if [[ $? -eq 0 ]]; then
+        log_success "Nextcloud Container gestartet!"
+        echo ""
+        echo "Überwachen Sie die Logs mit:"
+        echo "$DOCKER_COMPOSE -f nextcloud-caddy-docker-compose.yml logs -f"
+        echo ""
+        echo "Status prüfen mit:"
+        echo "$DOCKER_COMPOSE -f nextcloud-caddy-docker-compose.yml ps"
+    else
+        log_error "Fehler beim Starten der Container!"
+        return 1
+    fi
+}
+
+# Funktion: Nextcloud stoppen
+stop_nextcloud() {
+    log_info "Stoppe Nextcloud Container..."
+    
+    # Docker Compose Command detection
+    local DOCKER_COMPOSE=""
+    if docker compose version &> /dev/null; then
+        DOCKER_COMPOSE="docker compose"
+    elif command -v docker-compose &> /dev/null; then
+        DOCKER_COMPOSE="docker-compose"
+    else
+        log_error "Docker Compose ist nicht verfügbar!"
+        return 1
+    fi
+    
+    # Stoppe alle Container
+    $DOCKER_COMPOSE -f nextcloud-caddy-docker-compose.yml --profile docker-db down
+    
+    if [[ $? -eq 0 ]]; then
+        log_success "Nextcloud Container gestoppt!"
+    else
+        log_error "Fehler beim Stoppen der Container!"
+        return 1
+    fi
+}
+
+# Funktion: Nextcloud neustarten
+restart_nextcloud() {
+    log_info "Starte Nextcloud Container neu..."
+    
+    stop_nextcloud
+    if [[ $? -eq 0 ]]; then
+        sleep 3
+        start_nextcloud
+    else
+        log_error "Neustart fehlgeschlagen - Stoppen nicht erfolgreich!"
+        return 1
+    fi
+}
+
+# Funktion: Container Status anzeigen
+show_container_status() {
+    log_info "Container Status..."
+    
+    # Docker Compose Command detection
+    local DOCKER_COMPOSE=""
+    if docker compose version &> /dev/null; then
+        DOCKER_COMPOSE="docker compose"
+    elif command -v docker-compose &> /dev/null; then
+        DOCKER_COMPOSE="docker-compose"
+    else
+        log_error "Docker Compose ist nicht verfügbar!"
+        return 1
+    fi
+    
+    echo ""
+    echo "=== CONTAINER STATUS ==="
+    $DOCKER_COMPOSE -f nextcloud-caddy-docker-compose.yml ps
+    
+    echo ""
+    echo "=== CONTAINER LOGS (letzte 20 Zeilen) ==="
+    $DOCKER_COMPOSE -f nextcloud-caddy-docker-compose.yml logs --tail=20
+}
+
+# Funktion: Container Logs anzeigen
+show_logs() {
+    log_info "Zeige Container Logs..."
+    
+    # Docker Compose Command detection
+    local DOCKER_COMPOSE=""
+    if docker compose version &> /dev/null; then
+        DOCKER_COMPOSE="docker compose"
+    elif command -v docker-compose &> /dev/null; then
+        DOCKER_COMPOSE="docker-compose"
+    else
+        log_error "Docker Compose ist nicht verfügbar!"
+        return 1
+    fi
+    
+    echo ""
+    echo "Verwende Ctrl+C zum Beenden"
+    echo ""
+    $DOCKER_COMPOSE -f nextcloud-caddy-docker-compose.yml logs -f
+}
+
+# =============================================================================
 # INTERAKTIVES MENÜ
 # =============================================================================
 
@@ -1337,18 +1489,28 @@ interactive_menu() {
         show_banner
         echo "Nextcloud Caddy Management"
         echo ""
+        echo "=== SETUP & KONFIGURATION ==="
         echo "1) Vollständiges Nextcloud-Setup"
         echo "2) GPG-Verschlüsselung einrichten"
         echo "3) GPG-Schlüssel importieren"
         echo "4) Secrets verwalten"
         echo "5) Host-System Cron einrichten"
-        echo "6) System-Status anzeigen"
-        echo "7) Konfiguration testen"
-        echo "8) Hilfe anzeigen"
+        echo ""
+        echo "=== CONTAINER MANAGEMENT ==="
+        echo "6) Nextcloud starten"
+        echo "7) Nextcloud stoppen" 
+        echo "8) Nextcloud neustarten"
+        echo "9) Container Status anzeigen"
+        echo "10) Container Logs anzeigen"
+        echo ""
+        echo "=== SYSTEM & HILFE ==="
+        echo "11) System-Status anzeigen"
+        echo "12) Konfiguration testen"
+        echo "13) Hilfe anzeigen"
         echo "0) Beenden"
         echo ""
         
-        read -p "Auswahl (0-8): " choice
+        read -p "Auswahl (0-13): " choice
         
         case $choice in
             1)
@@ -1373,14 +1535,34 @@ interactive_menu() {
                 read -p "Drücken Sie Enter um fortzufahren..."
                 ;;
             6)
-                show_status
+                start_nextcloud
                 read -p "Drücken Sie Enter um fortzufahren..."
                 ;;
             7)
-                test_configuration
+                stop_nextcloud
                 read -p "Drücken Sie Enter um fortzufahren..."
                 ;;
             8)
+                restart_nextcloud
+                read -p "Drücken Sie Enter um fortzufahren..."
+                ;;
+            9)
+                show_container_status
+                read -p "Drücken Sie Enter um fortzufahren..."
+                ;;
+            10)
+                show_logs
+                # Keine "Enter"-Aufforderung nach Logs, da interaktiv
+                ;;
+            11)
+                show_status
+                read -p "Drücken Sie Enter um fortzufahren..."
+                ;;
+            12)
+                test_configuration
+                read -p "Drücken Sie Enter um fortzufahren..."
+                ;;
+            13)
                 show_usage
                 read -p "Drücken Sie Enter um fortzufahren..."
                 ;;
@@ -1430,6 +1612,26 @@ main() {
         status)
             show_banner
             show_status
+            ;;
+        start)
+            show_banner
+            start_nextcloud
+            ;;
+        stop)
+            show_banner
+            stop_nextcloud
+            ;;
+        restart)
+            show_banner
+            restart_nextcloud
+            ;;
+        ps|status-containers)
+            show_banner
+            show_container_status
+            ;;
+        logs)
+            show_banner
+            show_logs
             ;;
         test-config)
             show_banner
