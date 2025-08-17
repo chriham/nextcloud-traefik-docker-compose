@@ -1,0 +1,122 @@
+# Caddyfile für Nextcloud FPM Container
+# Dieses File wird vom 'web' Service verwendet
+
+:80 {
+    # Root-Verzeichnis für Nextcloud
+    root * /var/www/html
+
+    # Logging
+    log {
+        output stdout
+        format console
+    }
+
+    # Security Headers
+    header {
+        # HSTS
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        
+        # Content Security Policy
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; media-src 'self'; object-src 'none'; child-src 'self'; frame-ancestors 'self'; form-action 'self'; base-uri 'self';"
+        
+        # Other security headers
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        
+        # Remove server information
+        -Server
+        -X-Powered-By
+    }
+
+    # Disable access to sensitive files
+    @forbidden {
+        path /.htaccess
+        path /data/*
+        path /config/*
+        path /db_structure
+        path /.xml
+        path /README
+        path /3rdparty/*
+        path /lib/*
+        path /templates/*
+        path /occ
+        path /console.php
+    }
+    
+    respond @forbidden 403
+
+    # Handle .well-known paths (for WebDAV, CalDAV, CardDAV)
+    redir /.well-known/carddav /remote.php/dav 301
+    redir /.well-known/caldav /remote.php/dav 301
+    redir /.well-known/webfinger /index.php/.well-known/webfinger 301
+    redir /.well-known/nodeinfo /index.php/.well-known/nodeinfo 301
+
+    # Handle static files
+    @static {
+        file
+        path *.css *.js *.png *.jpg *.jpeg *.gif *.ico *.woff *.woff2 *.ttf *.eot *.svg *.webp
+    }
+    
+    handle @static {
+        # Cache static files for 1 year
+        header Cache-Control "public, max-age=31536000, immutable"
+        file_server
+    }
+
+    # Handle index files
+    @index {
+        file {
+            try_files {path} {path}/index.php
+        }
+    }
+    
+    rewrite @index {http.matchers.file.relative}
+
+    # Handle PHP files
+    @phpFiles {
+        path *.php
+    }
+    
+    handle @phpFiles {
+        # PHP-FPM configuration
+        php_fastcgi app:9000 {
+            # Environment variables for Nextcloud
+            env modHeadersAvailable true
+            env front_controller_active true
+            
+            # Split path for proper handling
+            split .php
+            
+            # Index file
+            index index.php
+            
+            # Trusted proxies
+            trusted_proxies private_ranges
+        }
+    }
+
+    # Handle everything else (pretty URLs)
+    handle {
+        try_files {path} {path}/ /index.php?{query}
+        php_fastcgi app:9000 {
+            env modHeadersAvailable true
+            env front_controller_active true
+            split .php
+            index index.php
+            trusted_proxies private_ranges
+        }
+    }
+
+    # File server fallback
+    file_server
+
+    # Enable compression
+    encode gzip zstd
+
+    # Handle errors
+    handle_errors {
+        respond "{http.error.status_code} {http.error.status_text}"
+    }
+}

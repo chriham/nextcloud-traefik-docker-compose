@@ -1,0 +1,149 @@
+# Nextcloud Docker Compose - Git Ignore
+# ==============================================
+
+# =============================================================================
+# SENSITIVE DATA - NEVER COMMIT THESE!
+# =============================================================================
+
+# Environment Files (contain sensitive configuration)
+.env
+.env.local
+.env.production
+*.env.backup
+
+# Docker Secrets (passwords, keys, certificates)
+secrets/
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+
+# =============================================================================
+# USER DATA & RUNTIME FILES
+# =============================================================================
+
+# Nextcloud Data Directory
+nextcloud-data/
+data/
+
+# Backup Archives
+backups/
+*.sql
+*.sql.gz
+*.tar.gz
+*.zip
+*.gpg
+
+# Log Files
+logs/
+*.log
+*.log.*
+
+# =============================================================================
+# DOCKER RUNTIME
+# =============================================================================
+
+# Docker Compose Override Files (user-specific)
+docker-compose.override.yml
+docker-compose.override.yaml
+
+# Docker Build Context
+.dockerignore
+
+# =============================================================================
+# SYSTEM FILES
+# =============================================================================
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msm
+*.msp
+*.lnk
+
+# =============================================================================
+# DEVELOPMENT & EDITOR FILES
+# =============================================================================
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary Files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+
+# =============================================================================
+# GPG & ENCRYPTION
+# =============================================================================
+
+# GPG Keyrings (if stored locally)
+.gnupg/
+*.gpg-agent-info
+pubring.gpg~
+secring.gpg~
+trustdb.gpg~
+
+# =============================================================================
+# TESTING & DEVELOPMENT
+# =============================================================================
+
+# Test Files
+test/
+tests/
+*.test
+test-*
+
+# Development Scripts
+dev-*
+debug-*
+local-*
+
+# =============================================================================
+# WHAT SHOULD BE COMMITTED:
+# =============================================================================
+# ✅ nextcloud-caddy.env (template)
+# ✅ nextcloud.env (app configuration)
+# ✅ docker-compose.yml files
+# ✅ Caddyfiles
+# ✅ Management scripts (*.sh)
+# ✅ Documentation (*.md)
+# ✅ This .gitignore
+
+# =============================================================================
+# FORCE INCLUDE IMPORTANT TEMPLATES
+# =============================================================================
+
+# Ensure templates and documentation are included
+!nextcloud-caddy.env
+!nextcloud.env
+!README*.md
+!*.sh
+!Caddyfile.*

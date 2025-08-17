@@ -1,0 +1,102 @@
+# Caddyfile für Reverse Proxy
+# Dieses File wird vom 'proxy' Service verwendet
+
+# Nextcloud Reverse Proxy mit automatischen Let's Encrypt Zertifikaten
+{$NEXTCLOUD_DOMAIN} {
+    # Let's Encrypt Email
+    tls {$EMAIL}
+
+    # Logging
+    log {
+        output stdout
+        format console
+    }
+
+    # Rate limiting (optional)
+    rate_limit {
+        zone nextcloud {
+            key {remote_host}
+            events 100
+            window 1m
+        }
+    }
+
+    # Security Headers (zusätzlich zu denen im Backend)
+    header {
+        # HSTS mit Preload
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        
+        # Permissions Policy
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        
+        # Remove server information
+        -Server
+        -X-Powered-By
+    }
+
+    # Handle notify_push WebSocket connections
+    handle /push/* {
+        reverse_proxy notify_push:7867 {
+            # WebSocket support
+            header_up Upgrade {>Upgrade}
+            header_up Connection {>Connection}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-Host {host}
+        }
+    }
+
+    # Main Nextcloud reverse proxy
+    handle {
+        reverse_proxy web:80 {
+            # Headers for proper proxying
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            header_up X-Forwarded-Host {host}
+            
+            # Handle large file uploads
+            flush_interval -1
+            
+            # Health check
+            health_uri /status.php
+            health_interval 30s
+            health_timeout 10s
+        }
+    }
+
+    # Enable compression
+    encode gzip zstd
+
+    # Handle errors
+    handle_errors {
+        @502 expression {http.error.status_code} == 502
+        handle @502 {
+            respond "Nextcloud ist vorübergehend nicht verfügbar. Bitte versuchen Sie es später erneut." 502
+        }
+        
+        @503 expression {http.error.status_code} == 503
+        handle @503 {
+            respond "Nextcloud wird gerade gewartet. Bitte versuchen Sie es später erneut." 503
+        }
+        
+        respond "{http.error.status_code} {http.error.status_text}"
+    }
+}
+
+# HTTP to HTTPS redirect für alle anderen Domains
+:80 {
+    # Redirect all HTTP traffic to HTTPS
+    redir https://{host}{uri} permanent
+}
+
+# Optional: Admin Interface für Caddy (nur für Debugging)
+# :2019 {
+#     metrics /metrics
+#     
+#     # Basic Auth (generiere mit: caddy hash-password)
+#     basicauth /metrics {
+#         admin $2a$14$...your-hashed-password...
+#     }
+# }
