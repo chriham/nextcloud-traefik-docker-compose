@@ -72,11 +72,11 @@ services:
       start_period: 60s
     restart: unless-stopped
 
-  # Redis Cache
+  # Redis Cache (läuft als Standard-User für einfachere Volume-Berechtigungen)
   redis:
     image: ${NEXTCLOUD_REDIS_IMAGE_TAG}
     command: ["redis-server", "--requirepass", "$(cat /run/secrets/redis_password)", "--appendonly", "yes"]
-    user: "${REDIS_USER_ID}:${REDIS_GROUP_ID}"
+    # user: "${REDIS_USER_ID}:${REDIS_GROUP_ID}"  # Entfernt - läuft als Standard-User
     volumes:
       - redis-data:/data
     secrets:
