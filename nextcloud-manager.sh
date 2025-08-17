@@ -990,6 +990,16 @@ nextcloud_setup() {
     mkdir -p "$BACKUP_DIR/postgres"
     mkdir -p "$BACKUP_DIR/data"
     
+    # Erstelle Symlink zu Secrets für Docker Compose
+    if [[ "$SECRETS_DIR" != "$(pwd)/secrets" ]]; then
+        log_info "Erstelle Symlink für Docker Compose Secrets..."
+        # Entferne existierenden Symlink oder Verzeichnis
+        rm -rf ./secrets
+        # Erstelle Symlink zum echten Secrets-Verzeichnis
+        ln -sf "$SECRETS_DIR" ./secrets
+        log_success "Symlink erstellt: ./secrets -> $SECRETS_DIR"
+    fi
+    
     # Setze korrekte Berechtigungen für User-Verzeichnisse
     if [[ "$NC_USER" != "root" && "$NC_USER" != "$CURRENT_USER" ]]; then
         sudo chown -R "$NC_UID:$NC_GID" "$DATA_DIR" "$BACKUP_DIR" "$SECRETS_DIR" 2>/dev/null || true
@@ -1051,6 +1061,10 @@ NEXTCLOUD_USER_ID=$NC_UID
 NEXTCLOUD_GROUP_ID=$NC_GID
 REDIS_USER_ID=1001
 REDIS_GROUP_ID=1001
+
+# Pfade
+SECRETS_DIR=$SECRETS_DIR
+BACKUP_DIR=$BACKUP_DIR
 
 TRUSTED_PROXIES=172.16.0.0/12
 
@@ -1371,6 +1385,17 @@ start_nextcloud() {
     
     # Lade .env um USE_DOCKER_DB zu prüfen
     source .env
+    
+    # Prüfe und erstelle Secrets-Symlink falls nötig
+    if [[ ! -e "./secrets" ]]; then
+        if [[ -n "${SECRETS_DIR:-}" && -d "$SECRETS_DIR" ]]; then
+            log_info "Erstelle fehlenden Secrets-Symlink..."
+            ln -sf "$SECRETS_DIR" ./secrets
+        else
+            log_error "Secrets-Verzeichnis nicht gefunden! Führe erst das Setup aus."
+            return 1
+        fi
+    fi
     
     # Starte Container basierend auf DB-Konfiguration
     if [[ "${USE_DOCKER_DB:-false}" == "true" ]]; then
