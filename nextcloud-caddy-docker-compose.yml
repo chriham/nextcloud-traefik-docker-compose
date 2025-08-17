@@ -40,13 +40,8 @@ volumes:
   caddy-data:
   caddy-config:
 
-secrets:
-  redis_password:
-    file: ./secrets/redis_password.txt
-  postgres_password:
-    file: ./secrets/postgres_password.txt
-  nextcloud_admin_password:
-    file: ./secrets/nextcloud_admin_password.txt
+# Docker Secrets entfernt - Environment Variables werden verwendet
+# Passwörter werden sicher über .env Datei geladen (nicht in Logs sichtbar)
 
 services:
   # PostgreSQL Datenbank (nur wenn USE_DOCKER_DB=true in .env)
@@ -59,13 +54,7 @@ services:
     environment:
       POSTGRES_DB: ${NEXTCLOUD_DB_NAME}
       POSTGRES_USER: ${NEXTCLOUD_DB_USER}
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
-    secrets:
-      - source: postgres_password
-        target: postgres_password
-        uid: '999'    # postgres user
-        gid: '999'    # postgres group  
-        mode: 0400
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     networks:
       - nextcloud-network
     healthcheck:
@@ -79,20 +68,16 @@ services:
   # Redis Cache (läuft als Standard-User für einfachere Volume-Berechtigungen)
   redis:
     image: ${NEXTCLOUD_REDIS_IMAGE_TAG}
-    command: ["redis-server", "--requirepass", "$(cat /run/secrets/redis_password)", "--appendonly", "yes"]
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
     # user: "${REDIS_USER_ID}:${REDIS_GROUP_ID}"  # Entfernt - läuft als Standard-User
     volumes:
       - redis-data:/data
-    secrets:
-      - source: redis_password
-        target: redis_password
-        uid: '999'    # redis user
-        gid: '999'    # redis group
-        mode: 0400
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     networks:
       - nextcloud-network
     healthcheck:
-      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "$(cat /run/secrets/redis_password)", "ping"]
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -139,16 +124,20 @@ services:
       POSTGRES_HOST: ${DB_HOST}
       POSTGRES_DB: ${NEXTCLOUD_DB_NAME}
       POSTGRES_USER: ${NEXTCLOUD_DB_USER}
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       
       # Redis Configuration
       REDIS_HOST: redis
       REDIS_HOST_PORT: 6379
-      REDIS_HOST_PASSWORD_FILE: /run/secrets/redis_password
+      REDIS_HOST_PASSWORD: ${REDIS_PASSWORD}
       
       # Admin User
       NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USERNAME}
-      NEXTCLOUD_ADMIN_PASSWORD_FILE: /run/secrets/nextcloud_admin_password
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
+      
+      # Nextcloud Installation Control
+      NEXTCLOUD_INIT_HTACCESS: "true"
+      NEXTCLOUD_INIT_APCU_CLEAR_CACHE: "true"
       
       # Domain & Proxy Configuration
       NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_HOSTNAME}
@@ -168,22 +157,7 @@ services:
       # Nextcloud Defaults
       default_phone_region: DE
       mail_smtpmode: smtp
-    secrets:
-      - source: postgres_password
-        target: postgres_password
-        uid: '33'     # www-data user
-        gid: '33'     # www-data group
-        mode: 0400
-      - source: redis_password
-        target: redis_password
-        uid: '33'     # www-data user
-        gid: '33'     # www-data group
-        mode: 0400
-      - source: nextcloud_admin_password
-        target: nextcloud_admin_password
-        uid: '33'     # www-data user
-        gid: '33'     # www-data group
-        mode: 0400
+
     networks:
       - nextcloud-network
     healthcheck:
