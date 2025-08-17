@@ -1116,9 +1116,10 @@ EOF
     fi
 
     echo "2. Warten Sie bis alle Container gestartet sind ($DOCKER_COMPOSE logs -f)"
-    echo "3. Aktivieren Sie Notify Push für bessere Performance:"
-    echo "   $DOCKER_COMPOSE exec app php occ app:enable notify_push"
+    echo "3. Installieren und konfigurieren Sie Notify Push für bessere Performance:"
+    echo "   $DOCKER_COMPOSE exec app php occ app:install notify_push"
     echo "   $DOCKER_COMPOSE exec app php occ notify_push:setup https://$DOMAIN/push"
+    echo "   $DOCKER_COMPOSE exec app php occ notify_push:self-test"
     echo "4. Öffnen Sie https://$DOMAIN in Ihrem Browser"
     echo "5. Loggen Sie sich mit Benutzername '$ADMIN_USER' und dem generierten Passwort ein"
     echo ""
