@@ -1,16 +1,16 @@
 # Nextcloud with Let's Encrypt Using Docker Compose
 
-# The complete installation guide is available on my website https://www.heyvaldemar.com/install-nextcloud-using-docker-compose/
+# The complete installation guide is available on my website https://www.heyvaldemar.com/install-nextcloud-using-docker compose/
 
 # Change variables in the `.env` to meet your requirements.
-# Note that the `.env` file should be in the same directory as `nextcloud-traefik-letsencrypt-docker-compose.yml`.
+# Note that the `.env` file should be in the same directory as `nextcloud-traefik-letsencrypt-docker compose.yml`.
 
 # Create networks for your services before deploying the configuration using the commands:
 # `docker network create traefik-network`
 # `docker network create nextcloud-network`
 
 # Deploy Nextcloud using Docker Compose:
-# `docker compose -f nextcloud-traefik-letsencrypt-docker-compose.yml -p nextcloud up -d`
+# `docker compose -f nextcloud-traefik-letsencrypt-docker compose.yml -p nextcloud up -d`
 
 # Backups
 # The `backups` container in the configuration is responsible for the following:

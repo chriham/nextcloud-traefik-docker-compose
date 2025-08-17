@@ -8,8 +8,8 @@
 - `Caddyfile.*` - Webserver-Konfiguration
 
 ### 🐳 **Docker-Setup:**
-- `nextcloud-caddy-docker-compose.yml` - Container-Orchestrierung
-- `nextcloud-traefik-docker-compose.yml` - Legacy-Setup
+- `nextcloud-caddy-docker compose.yml` - Container-Orchestrierung
+- `nextcloud-traefik-docker compose.yml` - Legacy-Setup
 
 ### 🛠️ **Management-Scripts:**
 - `nextcloud-manager.sh` - Haupt-Management

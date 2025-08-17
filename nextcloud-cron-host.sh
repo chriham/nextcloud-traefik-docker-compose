@@ -9,10 +9,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
 
 # Docker Compose Command detection
-if command -v docker-compose &> /dev/null; then
-    DOCKER_COMPOSE="docker-compose"
-elif docker compose version &> /dev/null; then
+if docker compose version &> /dev/null; then
     DOCKER_COMPOSE="docker compose"
+elif command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+    echo "[$TIMESTAMP] WARNING: Verwende veraltetes 'docker-compose'. Empfehlung: Verwende 'docker compose'"
 else
     echo "[$TIMESTAMP] ERROR: Docker Compose nicht gefunden"
     exit 1

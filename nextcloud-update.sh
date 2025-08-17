@@ -7,7 +7,7 @@ set -euo pipefail
 
 # Konfiguration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMPOSE_FILE="${SCRIPT_DIR}/nextcloud-caddy-docker-compose.yml"
+COMPOSE_FILE="${SCRIPT_DIR}/nextcloud-caddy-docker compose.yml"
 COMPOSE_PROJECT="nextcloud-caddy"
 BACKUP_SCRIPT="${SCRIPT_DIR}/backup-nextcloud.sh"
 
@@ -47,7 +47,7 @@ check_prerequisites() {
         exit 1
     fi
     
-    if ! command -v docker-compose &> /dev/null; then
+    if ! command -v docker compose &> /dev/null; then
         log_error "Docker Compose ist nicht installiert"
         exit 1
     fi
@@ -65,12 +65,12 @@ check_prerequisites() {
 
 get_current_images() {
     local service="$1"
-    docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" images -q "$service" 2>/dev/null | head -1
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" images -q "$service" 2>/dev/null | head -1
 }
 
 get_service_status() {
     local service="$1"
-    docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" ps -q "$service" 2>/dev/null | \
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" ps -q "$service" 2>/dev/null | \
         xargs -r docker inspect --format='{{.State.Status}}' 2>/dev/null | head -1 || echo "not_found"
 }
 
@@ -90,7 +90,7 @@ wait_for_service_health() {
             "running")
                 # Überprüfe Health Check falls verfügbar
                 local health
-                health=$(docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" ps -q "$service" 2>/dev/null | \
+                health=$(docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" ps -q "$service" 2>/dev/null | \
                     xargs -r docker inspect --format='{{.State.Health.Status}}' 2>/dev/null | head -1 || echo "none")
                 
                 if [[ "$health" == "healthy" ]] || [[ "$health" == "none" ]]; then
@@ -121,7 +121,7 @@ create_backup_containers() {
     log_info "Erstelle Backup-Container für $service..."
     
     local container_id
-    container_id=$(docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" ps -q "$service")
+    container_id=$(docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" ps -q "$service")
     
     if [[ -n "$container_id" ]]; then
         # Stoppe Container (falls laufend)
@@ -154,8 +154,8 @@ rollback_service() {
     log_warning "Starte Rollback für $service..."
     
     # Stoppe aktuellen (fehlerhaften) Container
-    docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" stop "$service" 2>/dev/null || true
-    docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" rm -f "$service" 2>/dev/null || true
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" stop "$service" 2>/dev/null || true
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" rm -f "$service" 2>/dev/null || true
     
     # Stelle Backup-Container wieder her
     local backup_container="${COMPOSE_PROJECT}_${service}_backup_${timestamp}"
@@ -194,14 +194,14 @@ update_single_service() {
     
     # Neues Image pullen
     log_info "Lade neues Image für $service..."
-    if ! docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" pull "$service"; then
+    if ! docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" pull "$service"; then
         log_error "Konnte neues Image für $service nicht laden"
         return 1
     fi
     
     # Neue Image-ID abrufen
     local new_image
-    new_image=$(docker-compose -f "$COMPOSE_FILE" images -q "$service" | head -1)
+    new_image=$(docker compose -f "$COMPOSE_FILE" images -q "$service" | head -1)
     
     # Überprüfe ob Update notwendig
     if [[ "$current_image" == "$new_image" ]] && [[ "$force_update" != "true" ]]; then
@@ -221,7 +221,7 @@ update_single_service() {
     
     # Starte neuen Container
     log_info "Starte neuen Container für $service..."
-    if ! docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d "$service"; then
+    if ! docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" up -d "$service"; then
         log_error "Konnte neuen Container für $service nicht starten"
         
         if [[ "$ROLLBACK_ON_FAILURE" == "true" ]]; then
@@ -275,12 +275,12 @@ perform_nextcloud_upgrade() {
     
     # Aktiviere Wartungsmodus
     log_info "Aktiviere Wartungsmodus..."
-    docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app \
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app \
         php occ maintenance:mode --on || log_warning "Konnte Wartungsmodus nicht aktivieren"
     
     # Führe Nextcloud-Upgrade durch
     log_info "Starte Nextcloud-Upgrade..."
-    if docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app \
+    if docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app \
         php occ upgrade; then
         log_success "Nextcloud-Upgrade erfolgreich"
     else
@@ -290,14 +290,14 @@ perform_nextcloud_upgrade() {
     
     # Deaktiviere Wartungsmodus
     log_info "Deaktiviere Wartungsmodus..."
-    docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app \
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app \
         php occ maintenance:mode --off || log_warning "Konnte Wartungsmodus nicht deaktivieren"
     
     # Führe zusätzliche Wartungsaufgaben durch
     log_info "Führe Wartungsaufgaben durch..."
-    docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app php occ db:add-missing-indices
-    docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app php occ db:convert-filecache-bigint
-    docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app php occ maintenance:repair
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app php occ db:add-missing-indices
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app php occ db:convert-filecache-bigint
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app php occ maintenance:repair
     
     log_success "Nextcloud-Upgrade und Wartung abgeschlossen"
 }
@@ -313,7 +313,7 @@ show_update_summary() {
         status=$(get_service_status "$service")
         
         local image
-        image=$(docker-compose -f "$COMPOSE_FILE" images "$service" 2>/dev/null | tail -n +2 | awk '{print $4}' || echo "N/A")
+        image=$(docker compose -f "$COMPOSE_FILE" images "$service" 2>/dev/null | tail -n +2 | awk '{print $4}' || echo "N/A")
         
         echo "  $service: $status ($image)"
     done
@@ -362,7 +362,7 @@ EOF
             local services=("redis" "postgres" "imaginary" "notify_push" "app" "web" "proxy" "cron")
             
             for service in "${services[@]}"; do
-                if docker-compose -f "$COMPOSE_FILE" ps | grep -q "$service"; then
+                if docker compose -f "$COMPOSE_FILE" ps | grep -q "$service"; then
                     update_single_service "$service" "$timestamp" "$force_update" || {
                         log_error "Update für $service fehlgeschlagen"
                         exit 1
@@ -386,7 +386,7 @@ EOF
             update_single_service "postgres" "$timestamp" "$force_update"
             ;;
         *)
-            if docker-compose -f "$COMPOSE_FILE" ps | grep -q "$update_type"; then
+            if docker compose -f "$COMPOSE_FILE" ps | grep -q "$update_type"; then
                 update_single_service "$update_type" "$timestamp" "$force_update"
             else
                 log_error "Unbekannter Service: $update_type"

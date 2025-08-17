@@ -8,7 +8,7 @@ set -euo pipefail
 # Konfiguration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_BASE_DIR="${BACKUP_BASE_DIR:-${SCRIPT_DIR}/backups}"
-COMPOSE_FILE="${SCRIPT_DIR}/nextcloud-caddy-docker-compose.yml"
+COMPOSE_FILE="${SCRIPT_DIR}/nextcloud-caddy-docker compose.yml"
 COMPOSE_PROJECT="nextcloud-caddy"
 
 # Farben für Output
@@ -62,7 +62,7 @@ check_prerequisites() {
         exit 1
     fi
     
-    if ! command -v docker-compose &> /dev/null; then
+    if ! command -v docker compose &> /dev/null; then
         log_error "Docker Compose ist nicht installiert"
         exit 1
     fi
@@ -118,7 +118,7 @@ decrypt_backup_if_needed() {
 
 enable_maintenance_mode() {
     log_info "Aktiviere Wartungsmodus..."
-    if docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app \
+    if docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app \
         php occ maintenance:mode --on 2>/dev/null; then
         log_success "Wartungsmodus aktiviert"
         return 0
@@ -130,7 +130,7 @@ enable_maintenance_mode() {
 
 disable_maintenance_mode() {
     log_info "Deaktiviere Wartungsmodus..."
-    if docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app \
+    if docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app \
         php occ maintenance:mode --off 2>/dev/null; then
         log_success "Wartungsmodus deaktiviert"
         return 0
@@ -145,7 +145,7 @@ stop_services() {
     log_info "Stoppe Services: ${services[*]}"
     
     for service in "${services[@]}"; do
-        if docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" stop "$service" 2>/dev/null; then
+        if docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" stop "$service" 2>/dev/null; then
             log_info "Service gestoppt: $service"
         else
             log_warning "Konnte Service nicht stoppen: $service"
@@ -158,7 +158,7 @@ start_services() {
     log_info "Starte Services: ${services[*]}"
     
     for service in "${services[@]}"; do
-        if docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" start "$service" 2>/dev/null; then
+        if docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" start "$service" 2>/dev/null; then
             log_info "Service gestartet: $service"
         else
             log_warning "Konnte Service nicht starten: $service"
@@ -254,11 +254,11 @@ restore_database() {
         log_info "Stelle Datenbank in Docker-Container wieder her..."
         
         # Lösche aktuelle Datenbank und erstelle neue
-        if docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T postgres \
+        if docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T postgres \
             psql -U "$NEXTCLOUD_DB_USER" -c "DROP DATABASE IF EXISTS ${NEXTCLOUD_DB_NAME};" && \
-           docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T postgres \
+           docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T postgres \
             psql -U "$NEXTCLOUD_DB_USER" -c "CREATE DATABASE ${NEXTCLOUD_DB_NAME};" && \
-           gunzip -c "$temp_backup" | docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T postgres \
+           gunzip -c "$temp_backup" | docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T postgres \
             psql -U "$NEXTCLOUD_DB_USER" -d "$NEXTCLOUD_DB_NAME"; then
             
             log_success "Datenbank erfolgreich wiederhergestellt"
@@ -321,8 +321,8 @@ restore_database() {
     
     # Nextcloud-Wartung durchführen
     log_info "Führe Nextcloud-Wartung durch..."
-    docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app php occ maintenance:repair || true
-    docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app php occ db:add-missing-indices || true
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app php occ maintenance:repair || true
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app php occ db:add-missing-indices || true
     
     # Wartungsmodus deaktivieren
     disable_maintenance_mode
@@ -432,8 +432,8 @@ restore_data() {
     
     # Nextcloud-Wartung durchführen
     log_info "Führe Nextcloud-Wartung durch..."
-    docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app php occ files:scan --all || true
-    docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app php occ maintenance:repair || true
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app php occ files:scan --all || true
+    docker compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app php occ maintenance:repair || true
     
     # Wartungsmodus deaktivieren
     disable_maintenance_mode

@@ -10,6 +10,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_BASE_DIR="${BACKUP_BASE_DIR:-${SCRIPT_DIR}/backups}"
 COMPOSE_FILE="${SCRIPT_DIR}/nextcloud-caddy-docker-compose.yml"
 COMPOSE_PROJECT="nextcloud-caddy"
+
+# Docker Compose Command detection
+if docker compose version &> /dev/null 2>&1; then
+    DOCKER_COMPOSE="docker compose"
+elif command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+    log_warning "Verwende veraltetes 'docker-compose'. Empfehlung: Verwende 'docker compose'"
+else
+    log_error "Docker Compose nicht gefunden"
+    exit 1
+fi
 DATE_FORMAT="%Y%m%d_%H%M%S"
 TIMESTAMP=$(date +"$DATE_FORMAT")
 
@@ -96,10 +107,7 @@ check_prerequisites() {
         exit 1
     fi
     
-    if ! command -v docker-compose &> /dev/null; then
-        log_error "Docker Compose ist nicht installiert oder nicht verfügbar"
-        exit 1
-    fi
+    # Docker Compose check is done at script start
 }
 
 check_gpg_availability() {
@@ -214,7 +222,7 @@ encrypt_file_with_gpg() {
 
 check_container_running() {
     local container_name="$1"
-    if ! docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" ps | grep -q "$container_name.*Up"; then
+    if ! $DOCKER_COMPOSE -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" ps | grep -q "$container_name.*Up"; then
         log_warning "Container $container_name läuft nicht"
         return 1
     fi
@@ -254,7 +262,7 @@ backup_database() {
         # Docker PostgreSQL
         if check_container_running "postgres"; then
             local temp_backup_file="${backup_file%.gz}"
-            if docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T postgres \
+            if $DOCKER_COMPOSE -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T postgres \
                 pg_dump -U "$NEXTCLOUD_DB_USER" "$NEXTCLOUD_DB_NAME" | gzip > "$temp_backup_file"; then
                 
                 # Verschlüssele mit GPG falls konfiguriert
@@ -320,7 +328,7 @@ backup_nextcloud_data() {
         # Aktiviere Wartungsmodus
         log_info "Aktiviere Wartungsmodus..."
         if check_container_running "app"; then
-            docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app \
+            $DOCKER_COMPOSE -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app \
                 php occ maintenance:mode --on || log_warning "Konnte Wartungsmodus nicht aktivieren"
         fi
         
@@ -343,7 +351,7 @@ backup_nextcloud_data() {
         # Deaktiviere Wartungsmodus
         log_info "Deaktiviere Wartungsmodus..."
         if check_container_running "app"; then
-            docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app \
+            $DOCKER_COMPOSE -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app \
                 php occ maintenance:mode --off || log_warning "Konnte Wartungsmodus nicht deaktivieren"
         fi
     else
@@ -363,7 +371,7 @@ backup_nextcloud_config() {
     
     # Kopiere Nextcloud config.php
     if check_container_running "app"; then
-        docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app \
+        $DOCKER_COMPOSE -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" exec -T app \
             cat /var/www/html/config/config.php > "$temp_dir/config.php" 2>/dev/null || \
             log_warning "Konnte config.php nicht extrahieren"
     fi
@@ -588,7 +596,7 @@ backup_logs() {
     
     for service in "${services[@]}"; do
         if check_container_running "$service"; then
-            docker-compose -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" logs --no-color "$service" > "$log_backup_dir/${service}.log" 2>/dev/null || \
+            $DOCKER_COMPOSE -f "$COMPOSE_FILE" -p "$COMPOSE_PROJECT" logs --no-color "$service" > "$log_backup_dir/${service}.log" 2>/dev/null || \
                 log_warning "Konnte Logs für $service nicht exportieren"
         fi
     done

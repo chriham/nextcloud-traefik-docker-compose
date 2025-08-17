@@ -675,7 +675,16 @@ nextcloud_setup() {
     # Überprüfe erforderliche Programme
     log_info "Überprüfe erforderliche Programme..."
     check_command "docker"
-    check_command "docker-compose"
+    # Docker Compose (check both docker-compose and docker compose)
+    if command -v docker-compose &> /dev/null; then
+        DOCKER_COMPOSE="docker-compose"
+        log_warning "Verwende veraltetes 'docker-compose'. Empfehlung: Verwende 'docker compose'"
+    elif docker compose version &> /dev/null; then
+        DOCKER_COMPOSE="docker compose"
+    else
+        log_error "Docker Compose ist nicht verfügbar (weder docker-compose noch docker compose)"
+        exit 1
+    fi
     check_command "openssl"
 
     # Überprüfe ob bereits eine .env existiert
@@ -934,13 +943,13 @@ EOF
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         log_info "Starte Nextcloud..."
         if [[ "$USE_DOCKER_DB" == true ]]; then
-            docker-compose -f nextcloud-caddy-docker-compose.yml --profile docker-db up -d
+            $DOCKER_COMPOSE -f nextcloud-caddy-docker-compose.yml --profile docker-db up -d
         else
-            docker-compose -f nextcloud-caddy-docker-compose.yml up -d
+            $DOCKER_COMPOSE -f nextcloud-caddy-docker-compose.yml up -d
         fi
         
         log_success "Nextcloud wird gestartet. Überprüfen Sie den Status mit:"
-        echo "docker-compose -f nextcloud-caddy-docker-compose.yml logs -f"
+        echo "$DOCKER_COMPOSE -f nextcloud-caddy-docker-compose.yml logs -f"
         
         # Teste Host-Cron falls eingerichtet
         if crontab -l 2>/dev/null | grep -q "nextcloud-cron"; then

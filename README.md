@@ -2,8 +2,8 @@
 
 Dieses Repository enthält zwei verschiedene Nextcloud Docker Compose Setups:
 
-- **Traefik-Version** (Original): `nextcloud-traefik-docker-compose.yml`
-- **Caddy-Version** (Neu): `nextcloud-caddy-docker-compose.yml` - **Empfohlen!**
+- **Traefik-Version** (Original): `nextcloud-traefik-docker compose.yml`
+- **Caddy-Version** (Neu): `nextcloud-caddy-docker compose.yml` - **Empfohlen!**
 
 ## 🚀 Caddy-Setup (Empfohlen)
 
@@ -184,7 +184,7 @@ graph LR
 Das ursprüngliche Traefik-Setup ist weiterhin verfügbar:
 
 ```bash
-docker-compose -f nextcloud-traefik-docker-compose.yml up -d
+docker compose -f nextcloud-traefik-docker compose.yml up -d
 ```
 
 **Hinweis**: Das Caddy-Setup wird für neue Installationen empfohlen, da es erweiterte Features und bessere Wartbarkeit bietet.

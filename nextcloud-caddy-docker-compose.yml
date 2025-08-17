@@ -1,17 +1,17 @@
 # Nextcloud with Let's Encrypt Using Docker Compose and Caddy
 #
 # Basiert auf der Traefik-Konfiguration und erweitert um Caddy-Support
-# Siehe: https://help.nextcloud.com/t/nextcloud-docker-compose-setup-with-caddy-2024/204846
+# Siehe: https://help.nextcloud.com/t/nextcloud-docker compose-setup-with-caddy-2024/204846
 #
 # Änderungen in der `.env` Datei vornehmen um die Anforderungen zu erfüllen.
-# Die `.env` Datei sollte im gleichen Verzeichnis wie diese docker-compose.yml sein.
+# Die `.env` Datei sollte im gleichen Verzeichnis wie diese docker compose.yml sein.
 #
 # Netzwerke vor dem Deployment erstellen:
 # `docker network create caddy-network`
 # `docker network create nextcloud-network`
 #
 # Nextcloud mit Docker Compose deployen:
-# `docker compose -f nextcloud-caddy-docker-compose.yml -p nextcloud-caddy up -d`
+# `docker compose -f nextcloud-caddy-docker compose.yml -p nextcloud-caddy up -d`
 #
 # Features:
 # - Caddy als Reverse Proxy mit automatischen Let's Encrypt Zertifikaten

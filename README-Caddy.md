@@ -66,10 +66,10 @@ docker network create nextcloud-network
 
 # 4. Container starten
 # Mit Docker PostgreSQL:
-docker-compose -f nextcloud-caddy-docker-compose.yml --profile docker-db up -d
+docker compose -f nextcloud-caddy-docker compose.yml --profile docker-db up -d
 
 # Oder ohne PostgreSQL (externe DB):
-docker-compose -f nextcloud-caddy-docker-compose.yml up -d
+docker compose -f nextcloud-caddy-docker compose.yml up -d
 ```
 
 ## Datenbankoptionen
@@ -89,7 +89,7 @@ docker-compose -f nextcloud-caddy-docker-compose.yml up -d
 
 | Datei | Zweck |
 |-------|-------|
-| `nextcloud-caddy-docker-compose.yml` | Hauptkonfiguration für alle Services |
+| `nextcloud-caddy-docker compose.yml` | Hauptkonfiguration für alle Services |
 | `.env` | Umgebungsvariablen (aus `nextcloud-caddy.env` kopiert) |
 | `Caddyfile.proxy` | Caddy Reverse Proxy Konfiguration |
 | `Caddyfile.nextcloud` | Caddy Webserver für Nextcloud FPM |
@@ -140,7 +140,7 @@ Nach dem ersten Start:
 
 ```bash
 # In den Nextcloud Container wechseln
-docker-compose -f nextcloud-caddy-docker-compose.yml exec app bash
+docker compose -f nextcloud-caddy-docker compose.yml exec app bash
 
 # Notify Push konfigurieren
 php occ notify_push:setup https://ihre-domain.com/push
@@ -153,7 +153,7 @@ php occ notify_push:self-test
 
 ```bash
 # Imaginary in Nextcloud konfigurieren
-docker-compose -f nextcloud-caddy-docker-compose.yml exec app bash
+docker compose -f nextcloud-caddy-docker compose.yml exec app bash
 php occ config:system:set preview_imaginary_url --value="http://imaginary:9000"
 ```
 
@@ -163,16 +163,16 @@ php occ config:system:set preview_imaginary_url --value="http://imaginary:9000"
 
 ```bash
 # Status anzeigen
-docker-compose -f nextcloud-caddy-docker-compose.yml ps
+docker compose -f nextcloud-caddy-docker compose.yml ps
 
 # Logs anzeigen
-docker-compose -f nextcloud-caddy-docker-compose.yml logs -f
+docker compose -f nextcloud-caddy-docker compose.yml logs -f
 
 # Container neustarten
-docker-compose -f nextcloud-caddy-docker-compose.yml restart
+docker compose -f nextcloud-caddy-docker compose.yml restart
 
 # Container stoppen
-docker-compose -f nextcloud-caddy-docker-compose.yml down
+docker compose -f nextcloud-caddy-docker compose.yml down
 ```
 
 ### Konsolidierte Management-Scripts
@@ -242,7 +242,7 @@ Das Nextcloud Caddy System verwendet **4 Haupt-Scripts** für alle Verwaltungsau
 
 ```bash
 # In den App-Container wechseln
-docker-compose -f nextcloud-caddy-docker-compose.yml exec app bash
+docker compose -f nextcloud-caddy-docker compose.yml exec app bash
 
 # Wartungsmodus aktivieren/deaktivieren
 php occ maintenance:mode --on
@@ -332,7 +332,7 @@ restic -r /path/to/restic-repo backup ./backups/
 1. **Container starten nicht**
    ```bash
    # Logs überprüfen
-   docker-compose -f nextcloud-caddy-docker-compose.yml logs
+   docker compose -f nextcloud-caddy-docker compose.yml logs
    
    # Networks überprüfen
    docker network ls
@@ -341,7 +341,7 @@ restic -r /path/to/restic-repo backup ./backups/
 2. **Let's Encrypt Zertifikat-Probleme**
    ```bash
    # Caddy Logs überprüfen
-   docker-compose -f nextcloud-caddy-docker-compose.yml logs proxy
+   docker compose -f nextcloud-caddy-docker compose.yml logs proxy
    
    # DNS-Auflösung testen
    nslookup ihre-domain.com
@@ -350,10 +350,10 @@ restic -r /path/to/restic-repo backup ./backups/
 3. **Datenbank-Verbindungsfehler**
    ```bash
    # Datenbank-Status überprüfen
-   docker-compose -f nextcloud-caddy-docker-compose.yml exec postgres pg_isready -U nextcloud
+   docker compose -f nextcloud-caddy-docker compose.yml exec postgres pg_isready -U nextcloud
    
    # Netzwerk-Konnektivität testen
-   docker-compose -f nextcloud-caddy-docker-compose.yml exec app ping postgres
+   docker compose -f nextcloud-caddy-docker compose.yml exec app ping postgres
    ```
 
 4. **Performance-Probleme**
@@ -370,7 +370,7 @@ Für detaillierte Logs:
 loglevel=0  # DEBUG Level
 
 # Container neustarten
-docker-compose -f nextcloud-caddy-docker-compose.yml restart app
+docker compose -f nextcloud-caddy-docker compose.yml restart app
 ```
 
 ## Sicherheitshinweise
@@ -392,7 +392,7 @@ Für eine Installation unter einem Subpath (z.B. `https://domain.com/nextcloud`)
 
 ### Externe Services
 
-Sie können zusätzliche Services wie Collabora Office oder OnlyOffice hinzufügen, indem Sie weitere Container zur `docker-compose.yml` hinzufügen.
+Sie können zusätzliche Services wie Collabora Office oder OnlyOffice hinzufügen, indem Sie weitere Container zur `docker compose.yml` hinzufügen.
 
 ## Support
 
