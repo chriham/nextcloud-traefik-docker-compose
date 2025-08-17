@@ -839,23 +839,31 @@ select_existing_user() {
 
 # Funktion: Standard-Pfade basierend auf User-Home aktualisieren
 update_default_paths() {
-    # Wenn noch Standard-Pfad, dann in User-Home verlegen
-    if [[ "$DATA_DIR" == "./nextcloud-data" ]]; then
-        DATA_DIR="$NC_HOME/nextcloud-data"
-        log_info "Daten-Verzeichnis aktualisiert: $DATA_DIR"
-    fi
+    # Standard-Pfade in User-Home setzen
+    DATA_DIR="$NC_HOME/nextcloud-data"
+    SECRETS_DIR="$NC_HOME/nextcloud-secrets"
+    BACKUP_DIR="$NC_HOME/nextcloud-backups"
     
-    # Weitere Standard-Pfade anpassen
-    if [[ ! -d "secrets" ]]; then
-        SECRETS_DIR="$NC_HOME/nextcloud-secrets"
-    else
+    # Falls bereits lokale Verzeichnisse existieren, diese bevorzugen
+    if [[ -d "./secrets" ]]; then
         SECRETS_DIR="$(pwd)/secrets"
+        log_info "Lokales secrets-Verzeichnis gefunden, wird verwendet"
     fi
     
-    if [[ ! -d "backups" ]]; then
-        BACKUP_DIR="$NC_HOME/nextcloud-backups"
-    else
+    if [[ -d "./backups" ]]; then
         BACKUP_DIR="$(pwd)/backups"
+        log_info "Lokales backups-Verzeichnis gefunden, wird verwendet"
+    fi
+    
+    if [[ -d "./nextcloud-data" ]]; then
+        log_info "Lokales nextcloud-data-Verzeichnis gefunden"
+        echo "   Lokal: $(pwd)/nextcloud-data"
+        echo "   User-Home: $DATA_DIR"
+        read -p "Lokales Verzeichnis verwenden? (y/N): " -r
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            DATA_DIR="$(pwd)/nextcloud-data"
+            log_info "Lokales Daten-Verzeichnis wird verwendet"
+        fi
     fi
 }
 
@@ -948,12 +956,20 @@ nextcloud_setup() {
     read -p "Nextcloud Admin Benutzername [admin]: " ADMIN_USER
     ADMIN_USER=${ADMIN_USER:-admin}
 
-    # Data Directory
-    read -p "Nextcloud Daten Verzeichnis [./nextcloud-data]: " DATA_DIR
-    DATA_DIR=${DATA_DIR:-./nextcloud-data}
-
     # User IDs - mit Sicherheitsprüfung und dediziertem User
     setup_nextcloud_user
+
+    # Data Directory - NACH User-Bestimmung mit intelligentem Standard
+    echo ""
+    log_info "Daten-Verzeichnis konfigurieren..."
+    echo "Empfohlener Pfad basierend auf User '$NC_USER': $DATA_DIR"
+    read -p "Nextcloud Daten Verzeichnis [$DATA_DIR]: " USER_DATA_DIR
+    if [[ -n "$USER_DATA_DIR" ]]; then
+        DATA_DIR="$USER_DATA_DIR"
+        log_info "Benutzerdefiniertes Verzeichnis gewählt: $DATA_DIR"
+    else
+        log_info "Standard-Verzeichnis verwendet: $DATA_DIR"
+    fi
 
     # Erstelle Verzeichnisse
     log_info "Erstelle erforderliche Verzeichnisse..."
