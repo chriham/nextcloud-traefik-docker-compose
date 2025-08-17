@@ -117,7 +117,7 @@ services:
       - nextcloud-apps:/var/www/html/custom_apps
       - nextcloud-config:/var/www/html/config
       - ${NEXTCLOUD_DATA_DIR}:/var/www/html/data
-      - ./nextcloud.env:/var/www/html/.env:ro  # Read-only mount
+      # .env Mount entfernt - Konfiguration über Environment-Variablen
     depends_on:
       nextcloud-init:
         condition: service_completed_successfully
@@ -127,21 +127,39 @@ services:
       redis:
         condition: service_healthy
     environment:
+      # Database Configuration
       POSTGRES_HOST: ${DB_HOST}
       POSTGRES_DB: ${NEXTCLOUD_DB_NAME}
       POSTGRES_USER: ${NEXTCLOUD_DB_USER}
       POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      
+      # Redis Configuration
       REDIS_HOST: redis
       REDIS_HOST_PORT: 6379
       REDIS_HOST_PASSWORD_FILE: /run/secrets/redis_password
+      
+      # Admin User
       NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USERNAME}
       NEXTCLOUD_ADMIN_PASSWORD_FILE: /run/secrets/nextcloud_admin_password
+      
+      # Domain & Proxy Configuration
       NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_HOSTNAME}
       TRUSTED_PROXIES: ${TRUSTED_PROXIES}
       OVERWRITECLIURL: ${NEXTCLOUD_URL}
       OVERWRITEPROTOCOL: https
       OVERWRITEHOST: ${NEXTCLOUD_HOSTNAME}
       OVERWRITEWEBROOT: ${OVERWRITEWEBROOT:-}
+      
+      # PHP Configuration (wichtigste aus nextcloud.env)
+      PHP_MEMORY_LIMIT: 512M
+      PHP_UPLOAD_MAX_FILESIZE: 10G
+      PHP_POST_MAX_SIZE: 10G
+      PHP_MAX_EXECUTION_TIME: 3600
+      PHP_MAX_INPUT_TIME: 3600
+      
+      # Nextcloud Defaults
+      default_phone_region: DE
+      mail_smtpmode: smtp
     secrets:
       - postgres_password
       - redis_password
