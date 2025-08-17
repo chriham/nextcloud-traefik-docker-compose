@@ -121,11 +121,11 @@ services:
     depends_on:
       nextcloud-init:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
-        required: false  # Nur wenn docker-db Profil aktiv
       redis:
         condition: service_healthy
+      postgres:
+        condition: service_healthy
+        required: false  # Optional - nur wenn docker-db Profile aktiv
     environment:
       # Database Configuration
       POSTGRES_HOST: ${DB_HOST}

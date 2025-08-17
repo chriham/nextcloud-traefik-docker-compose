@@ -1411,9 +1411,11 @@ start_nextcloud() {
     # Starte Container basierend auf DB-Konfiguration
     if [[ "${USE_DOCKER_DB:-false}" == "true" ]]; then
         log_info "Starte mit Docker PostgreSQL..."
+        log_info "DB_HOST: ${DB_HOST:-postgres}"
         $DOCKER_COMPOSE -f nextcloud-caddy-docker-compose.yml --profile docker-db up -d
     else
         log_info "Starte ohne Docker PostgreSQL (externe DB)..."
+        log_info "DB_HOST: ${DB_HOST:-external}"
         $DOCKER_COMPOSE -f nextcloud-caddy-docker-compose.yml up -d
     fi
     
