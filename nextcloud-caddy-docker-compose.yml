@@ -167,11 +167,11 @@ services:
     networks:
       - nextcloud-network
     healthcheck:
-      test: ["CMD-SHELL", "php-fpm-healthcheck || exit 1"]
+      test: ["CMD-SHELL", "pgrep -f php-fpm || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 90s
+      start_period: 30s
     restart: unless-stopped
 
   # Caddy Webserver für Nextcloud FPM
