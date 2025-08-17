@@ -91,9 +91,10 @@ secure_secrets() {
     log_info "Secrets-Management wird gestartet..."
 
     # Überprüfe ob secrets Verzeichnis existiert
-    if [[ ! -d "secrets" ]]; then
-        mkdir -p secrets
-        log_info "Secrets-Verzeichnis erstellt"
+    SECRETS_DIR=${SECRETS_DIR:-./secrets}
+    if [[ ! -d "$SECRETS_DIR" ]]; then
+        mkdir -p "$SECRETS_DIR"
+        log_info "Secrets-Verzeichnis erstellt: $SECRETS_DIR"
     fi
 
     # Generiere oder aktualisiere Passwörter
@@ -104,7 +105,7 @@ secure_secrets() {
     )
 
     for secret_name in "${!passwords[@]}"; do
-        secret_file="secrets/${secret_name}.txt"
+        secret_file="${SECRETS_DIR:-./secrets}/${secret_name}.txt"
         
         if [[ -f "$secret_file" ]]; then
             log_warning "Secret ${secret_name} existiert bereits"
@@ -125,21 +126,22 @@ secure_secrets() {
     log_info "Setze sichere Dateiberechtigungen..."
     
     # Secrets-Verzeichnis: nur Owner kann lesen/schreiben/ausführen
-    chmod 700 secrets/
+    SECRETS_DIR=${SECRETS_DIR:-./secrets}
+    chmod 700 "$SECRETS_DIR/"
     
     # Secret-Dateien: nur Owner kann lesen/schreiben
-    chmod 600 secrets/*.txt
+    chmod 600 "$SECRETS_DIR"/*.txt
     
     # Überprüfe Berechtigungen
     log_info "Aktuelle Berechtigungen:"
-    ls -la secrets/
+    ls -la "$SECRETS_DIR/"
     
     # Zusätzliche Sicherheitsmaßnahmen
     log_info "Zusätzliche Sicherheitsmaßnahmen..."
     
     # Setze immutable bit (falls unterstützt)
     if command -v chattr &> /dev/null; then
-        for file in secrets/*.txt; do
+        for file in "$SECRETS_DIR"/*.txt; do
             if chattr +i "$file" 2>/dev/null; then
                 log_success "Immutable bit gesetzt für $(basename "$file")"
             else
@@ -149,9 +151,9 @@ secure_secrets() {
     fi
     
     # Erstelle .gitignore für secrets (falls nicht vorhanden)
-    if [[ ! -f "secrets/.gitignore" ]]; then
-        echo "*" > secrets/.gitignore
-        echo "!.gitignore" >> secrets/.gitignore
+    if [[ ! -f "$SECRETS_DIR/.gitignore" ]]; then
+        echo "*" > "$SECRETS_DIR/.gitignore"
+        echo "!.gitignore" >> "$SECRETS_DIR/.gitignore"
         log_success "Git-Ignore für Secrets erstellt"
     fi
     
@@ -666,6 +668,198 @@ setup_host_cron() {
 }
 
 # =============================================================================
+# USER SETUP FUNKTIONEN
+# =============================================================================
+
+# Funktion: Nextcloud User Setup mit Sicherheitsprüfungen
+setup_nextcloud_user() {
+    echo ""
+    log_info "Benutzer-Konfiguration für Nextcloud..."
+    
+    CURRENT_UID=$(id -u)
+    CURRENT_GID=$(id -g)
+    CURRENT_USER=$(whoami)
+    
+    # Warnung bei Root-Ausführung
+    if [[ $CURRENT_UID -eq 0 ]]; then
+        echo ""
+        log_warning "⚠️  Das Script läuft als ROOT!"
+        echo "   Für bessere Sicherheit wird ein dedizierter Nextcloud-User empfohlen."
+        echo ""
+        echo "Optionen:"
+        echo "1) Dedizierten 'nextcloud' User erstellen (EMPFOHLEN)"
+        echo "2) Bestehenden User verwenden"
+        echo "3) Als root weitermachen (NICHT EMPFOHLEN)"
+        echo ""
+        
+        while true; do
+            read -p "Auswahl [1-3]: " user_choice
+            case $user_choice in
+                1)
+                    create_dedicated_nextcloud_user
+                    break
+                    ;;
+                2)
+                    select_existing_user
+                    break
+                    ;;
+                3)
+                    log_warning "⚠️  Verwende ROOT - Sicherheitsrisiko!"
+                    NC_UID=0
+                    NC_GID=0
+                    NC_USER="root"
+                    NC_HOME="/root"
+                    break
+                    ;;
+                *)
+                    echo "Bitte 1, 2 oder 3 wählen."
+                    ;;
+            esac
+        done
+    else
+        # Nicht-Root: Aktuellen User als Standard anbieten
+        echo "Aktueller Benutzer: $CURRENT_USER (UID: $CURRENT_UID, GID: $CURRENT_GID)"
+        echo ""
+        echo "Optionen:"
+        echo "1) Aktuellen User verwenden (Standard)"
+        echo "2) Dedizierten 'nextcloud' User erstellen"
+        echo "3) Anderen User wählen"
+        echo ""
+        
+        read -p "Auswahl [1-3, Standard=1]: " user_choice
+        user_choice=${user_choice:-1}
+        
+        case $user_choice in
+            1)
+                NC_UID=$CURRENT_UID
+                NC_GID=$CURRENT_GID
+                NC_USER=$CURRENT_USER
+                NC_HOME=$(eval echo "~$CURRENT_USER")
+                log_info "Verwende aktuellen User: $NC_USER"
+                ;;
+            2)
+                create_dedicated_nextcloud_user
+                ;;
+            3)
+                select_existing_user
+                ;;
+            *)
+                log_info "Verwende Standard: aktueller User"
+                NC_UID=$CURRENT_UID
+                NC_GID=$CURRENT_GID
+                NC_USER=$CURRENT_USER
+                NC_HOME=$(eval echo "~$CURRENT_USER")
+                ;;
+        esac
+    fi
+    
+    # Aktualisiere Standard-Pfade basierend auf User-Home
+    update_default_paths
+    
+    echo ""
+    log_info "Gewählte Konfiguration:"
+    echo "   User: $NC_USER (UID: $NC_UID, GID: $NC_GID)"
+    echo "   Home: $NC_HOME"
+    echo "   Daten: $DATA_DIR"
+    echo ""
+}
+
+# Funktion: Dedizierten Nextcloud User erstellen
+create_dedicated_nextcloud_user() {
+    log_info "Erstelle dedizierten 'nextcloud' User..."
+    
+    # Prüfe ob User bereits existiert
+    if id "nextcloud" &>/dev/null; then
+        log_info "User 'nextcloud' existiert bereits."
+        NC_USER="nextcloud"
+        NC_UID=$(id -u nextcloud)
+        NC_GID=$(id -g nextcloud)
+        NC_HOME=$(eval echo "~nextcloud")
+    else
+        # Erstelle User mit eigenem Home-Verzeichnis
+        if command -v useradd &>/dev/null; then
+            # Linux (useradd)
+            sudo useradd -r -m -s /bin/bash -c "Nextcloud Service User" nextcloud
+        elif command -v adduser &>/dev/null; then
+            # Alternative (adduser)
+            sudo adduser --system --group --home /home/nextcloud --shell /bin/bash nextcloud
+        else
+            log_error "Kann keinen User erstellen - weder 'useradd' noch 'adduser' verfügbar!"
+            exit 1
+        fi
+        
+        # User zu Docker-Gruppe hinzufügen (falls vorhanden)
+        if getent group docker &>/dev/null; then
+            sudo usermod -aG docker nextcloud
+            log_info "User 'nextcloud' zu Docker-Gruppe hinzugefügt."
+        fi
+        
+        NC_USER="nextcloud"
+        NC_UID=$(id -u nextcloud)
+        NC_GID=$(id -g nextcloud)
+        NC_HOME="/home/nextcloud"
+        
+        log_success "User 'nextcloud' erfolgreich erstellt!"
+    fi
+}
+
+# Funktion: Bestehenden User auswählen
+select_existing_user() {
+    echo ""
+    echo "Verfügbare Benutzer (UID >= 1000):"
+    
+    # Liste verfügbare User
+    local users=()
+    while IFS=: read -r username _ uid gid _ _ home _; do
+        if [[ $uid -ge 1000 && $uid -lt 65534 ]]; then
+            users+=("$username:$uid:$gid:$home")
+            echo "   $username (UID: $uid, GID: $gid, Home: $home)"
+        fi
+    done < /etc/passwd
+    
+    if [[ ${#users[@]} -eq 0 ]]; then
+        log_error "Keine geeigneten Benutzer gefunden!"
+        exit 1
+    fi
+    
+    echo ""
+    read -p "Benutzername eingeben: " selected_user
+    
+    if id "$selected_user" &>/dev/null; then
+        NC_USER="$selected_user"
+        NC_UID=$(id -u "$selected_user")
+        NC_GID=$(id -g "$selected_user")
+        NC_HOME=$(eval echo "~$selected_user")
+        log_info "Gewählter User: $NC_USER"
+    else
+        log_error "User '$selected_user' existiert nicht!"
+        exit 1
+    fi
+}
+
+# Funktion: Standard-Pfade basierend auf User-Home aktualisieren
+update_default_paths() {
+    # Wenn noch Standard-Pfad, dann in User-Home verlegen
+    if [[ "$DATA_DIR" == "./nextcloud-data" ]]; then
+        DATA_DIR="$NC_HOME/nextcloud-data"
+        log_info "Daten-Verzeichnis aktualisiert: $DATA_DIR"
+    fi
+    
+    # Weitere Standard-Pfade anpassen
+    if [[ ! -d "secrets" ]]; then
+        SECRETS_DIR="$NC_HOME/nextcloud-secrets"
+    else
+        SECRETS_DIR="$(pwd)/secrets"
+    fi
+    
+    if [[ ! -d "backups" ]]; then
+        BACKUP_DIR="$NC_HOME/nextcloud-backups"
+    else
+        BACKUP_DIR="$(pwd)/backups"
+    fi
+}
+
+# =============================================================================
 # NEXTCLOUD SETUP
 # =============================================================================
 
@@ -758,21 +952,20 @@ nextcloud_setup() {
     read -p "Nextcloud Daten Verzeichnis [./nextcloud-data]: " DATA_DIR
     DATA_DIR=${DATA_DIR:-./nextcloud-data}
 
-    # User IDs
-    CURRENT_UID=$(id -u)
-    CURRENT_GID=$(id -g)
-    read -p "Nextcloud User ID [$CURRENT_UID]: " NC_UID
-    NC_UID=${NC_UID:-$CURRENT_UID}
-
-    read -p "Nextcloud Group ID [$CURRENT_GID]: " NC_GID
-    NC_GID=${NC_GID:-$CURRENT_GID}
+    # User IDs - mit Sicherheitsprüfung und dediziertem User
+    setup_nextcloud_user
 
     # Erstelle Verzeichnisse
     log_info "Erstelle erforderliche Verzeichnisse..."
-    mkdir -p secrets
+    mkdir -p "$SECRETS_DIR"
     mkdir -p "$DATA_DIR"
-    mkdir -p backups/postgres
-    mkdir -p backups/data
+    mkdir -p "$BACKUP_DIR/postgres"
+    mkdir -p "$BACKUP_DIR/data"
+    
+    # Setze korrekte Berechtigungen für User-Verzeichnisse
+    if [[ "$NC_USER" != "root" && "$NC_USER" != "$CURRENT_USER" ]]; then
+        sudo chown -R "$NC_UID:$NC_GID" "$DATA_DIR" "$BACKUP_DIR" "$SECRETS_DIR" 2>/dev/null || true
+    fi
 
     # Generiere Passwörter
     log_info "Generiere sichere Passwörter..."
@@ -781,12 +974,12 @@ nextcloud_setup() {
     ADMIN_PASSWORD=$(generate_password)
 
     # Speichere Passwörter in secrets
-    echo "$DB_PASSWORD" > secrets/postgres_password.txt
-    echo "$REDIS_PASSWORD" > secrets/redis_password.txt
-    echo "$ADMIN_PASSWORD" > secrets/nextcloud_admin_password.txt
+    echo "$DB_PASSWORD" > "$SECRETS_DIR/postgres_password.txt"
+    echo "$REDIS_PASSWORD" > "$SECRETS_DIR/redis_password.txt"
+    echo "$ADMIN_PASSWORD" > "$SECRETS_DIR/nextcloud_admin_password.txt"
 
     # Setze Berechtigungen für secrets
-    chmod 600 secrets/*.txt
+    chmod 600 "$SECRETS_DIR"/*.txt
 
     # Erstelle .env Datei
     log_info "Erstelle .env Datei..."
@@ -838,8 +1031,8 @@ TRUSTED_PROXIES=172.16.0.0/12
 # =============================================================================
 
 DATA_PATH=/var/www/html/data
-POSTGRES_BACKUPS_PATH=/backups/postgres
-DATA_BACKUPS_PATH=/backups/data
+POSTGRES_BACKUPS_PATH=$BACKUP_DIR/postgres
+DATA_BACKUPS_PATH=$BACKUP_DIR/data
 
 POSTGRES_BACKUP_NAME=nextcloud-postgres-backup
 DATA_BACKUP_NAME=nextcloud-data-backup
@@ -910,7 +1103,7 @@ EOF
     echo "3. Öffnen Sie https://$DOMAIN in Ihrem Browser"
     echo "4. Loggen Sie sich mit Benutzername '$ADMIN_USER' und dem generierten Passwort ein"
     echo ""
-    echo -e "${GREEN}Passwörter wurden in ./secrets/ gespeichert - bewahren Sie diese sicher auf!${NC}"
+    echo -e "${GREEN}Passwörter wurden in $SECRETS_DIR/ gespeichert - bewahren Sie diese sicher auf!${NC}"
 
     # Optional: GPG-Setup
     echo ""
@@ -1027,27 +1220,29 @@ show_status() {
         echo ".env: Nicht gefunden"
     fi
     
-    if [[ -d "secrets" ]]; then
+    SECRETS_DIR=${SECRETS_DIR:-"./secrets"}
+    if [[ -d "$SECRETS_DIR" ]]; then
         local secret_count
-        secret_count=$(find secrets -name "*.txt" | wc -l)
+        secret_count=$(find "$SECRETS_DIR" -name "*.txt" | wc -l)
         echo "Secrets: $secret_count Dateien"
     else
-        echo "Secrets: Verzeichnis nicht gefunden"
+        echo "Secrets: Verzeichnis nicht gefunden ($SECRETS_DIR)"
     fi
     
     # Backup Status
     echo ""
     echo "=== BACKUP STATUS ==="
-    if [[ -d "backups" ]]; then
+    BACKUP_DIR=${BACKUP_DIR:-"./backups"}
+    if [[ -d "$BACKUP_DIR" ]]; then
         for backup_type in database data config volumes logs; do
-            if [[ -d "backups/$backup_type" ]]; then
+            if [[ -d "$BACKUP_DIR/$backup_type" ]]; then
                 local count
-                count=$(find "backups/$backup_type" -type f | wc -l)
+                count=$(find "$BACKUP_DIR/$backup_type" -type f | wc -l)
                 echo "$backup_type: $count Backups"
             fi
         done
     else
-        echo "Backup-Verzeichnis: Nicht gefunden"
+        echo "Backup-Verzeichnis: Nicht gefunden ($BACKUP_DIR)"
     fi
 }
 
@@ -1068,7 +1263,8 @@ test_configuration() {
     
     # Test 2: Secrets
     ((tests_total++))
-    if [[ -d "secrets" ]] && ls secrets/*.txt &>/dev/null; then
+    SECRETS_DIR=${SECRETS_DIR:-"./secrets"}
+    if [[ -d "$SECRETS_DIR" ]] && ls "$SECRETS_DIR"/*.txt &>/dev/null; then
         log_success "✓ Secrets vorhanden"
         ((tests_passed++))
     else
