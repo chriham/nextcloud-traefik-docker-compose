@@ -91,6 +91,23 @@ services:
       start_period: 60s
     restart: unless-stopped
 
+  # Nextcloud Volume Permissions Init
+  nextcloud-init:
+    image: ${NEXTCLOUD_FPM_IMAGE_TAG}
+    user: "0:0"  # Als root ausführen für Berechtigungen
+    volumes:
+      - nextcloud-data:/var/www/html
+      - nextcloud-apps:/var/www/html/custom_apps
+      - nextcloud-config:/var/www/html/config
+    command: >
+      sh -c "
+        echo 'Setting Nextcloud volume permissions...' &&
+        chown -R www-data:www-data /var/www/html &&
+        chmod -R 755 /var/www/html &&
+        echo 'Nextcloud volume permissions set successfully'
+      "
+    restart: "no"
+
   # Nextcloud FPM Container
   app:
     image: ${NEXTCLOUD_FPM_IMAGE_TAG}
@@ -101,6 +118,14 @@ services:
       - nextcloud-config:/var/www/html/config
       - ${NEXTCLOUD_DATA_DIR}:/var/www/html/data
       - ./nextcloud.env:/var/www/html/.env:ro  # Read-only mount
+    depends_on:
+      nextcloud-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+        required: false  # Nur wenn docker-db Profil aktiv
+      redis:
+        condition: service_healthy
     environment:
       POSTGRES_HOST: ${DB_HOST}
       POSTGRES_DB: ${NEXTCLOUD_DB_NAME}
@@ -130,12 +155,6 @@ services:
       retries: 3
       start_period: 90s
     restart: unless-stopped
-    depends_on:
-      redis:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-        required: false  # Nur wenn docker-db Profil aktiv
 
   # Caddy Webserver für Nextcloud FPM
   web:
