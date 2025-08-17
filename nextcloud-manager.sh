@@ -972,18 +972,30 @@ EOF
 show_status() {
     log_info "System-Status wird überprüft..."
     
+    # Docker Compose Command detection
+    local DOCKER_COMPOSE=""
+    if docker compose version &> /dev/null; then
+        DOCKER_COMPOSE="docker compose"
+    elif command -v docker-compose &> /dev/null; then
+        DOCKER_COMPOSE="docker-compose"
+    fi
+    
     # Docker Status
     echo ""
     echo "=== DOCKER STATUS ==="
     if command -v docker &> /dev/null; then
         echo "Docker: $(docker --version)"
-        echo "Docker Compose: $(docker-compose --version)"
+        if [[ -n "$DOCKER_COMPOSE" ]]; then
+            echo "Docker Compose: $($DOCKER_COMPOSE --version)"
+        else
+            echo "Docker Compose: Nicht verfügbar"
+        fi
         
         # Container Status
-        if [[ -f "nextcloud-caddy-docker-compose.yml" ]]; then
+        if [[ -f "nextcloud-caddy-docker-compose.yml" ]] && [[ -n "$DOCKER_COMPOSE" ]]; then
             echo ""
             echo "Container Status:"
-            docker-compose -f nextcloud-caddy-docker-compose.yml ps || echo "Keine Container gefunden"
+            $DOCKER_COMPOSE -f nextcloud-caddy-docker-compose.yml ps || echo "Keine Container gefunden"
         fi
     else
         echo "Docker: Nicht installiert"
