@@ -1398,13 +1398,34 @@ start_nextcloud() {
     source .env
     
     # Prüfe und erstelle Secrets-Symlink falls nötig
-    if [[ ! -e "./secrets" ]]; then
+    if [[ ! -e "./secrets" ]] || [[ ! -d "./secrets" ]] || [[ ! -L "./secrets" ]]; then
+        # Entferne kaputten/falschen Symlink oder Verzeichnis
+        if [[ -e "./secrets" ]]; then
+            log_info "Entferne existierenden secrets Pfad..."
+            rm -rf "./secrets"
+        fi
+        
         if [[ -n "${SECRETS_DIR:-}" && -d "$SECRETS_DIR" ]]; then
-            log_info "Erstelle fehlenden Secrets-Symlink..."
+            log_info "Erstelle Secrets-Symlink: ./secrets -> $SECRETS_DIR"
             ln -sf "$SECRETS_DIR" ./secrets
+            
+            # Prüfe ob Symlink funktioniert
+            if [[ -d "./secrets" ]] && ls "./secrets"/*.txt &>/dev/null; then
+                log_success "✓ Secrets-Symlink erfolgreich erstellt"
+            else
+                log_error "✗ Secrets-Symlink funktioniert nicht oder keine Secret-Dateien gefunden"
+                return 1
+            fi
         else
-            log_error "Secrets-Verzeichnis nicht gefunden! Führe erst das Setup aus."
+            log_error "Secrets-Verzeichnis nicht gefunden! SECRETS_DIR='${SECRETS_DIR:-}'"
+            log_error "Führe erst das Setup aus: ./nextcloud-manager.sh setup"
             return 1
+        fi
+    else
+        # Prüfe ob existierender Symlink funktioniert
+        if ! ls "./secrets"/*.txt &>/dev/null; then
+            log_warning "Secrets-Symlink existiert, aber keine Secret-Dateien gefunden"
+            log_info "Secrets-Verzeichnis: $(readlink -f ./secrets 2>/dev/null || echo 'Fehler beim Lesen des Symlinks')"
         fi
     fi
     

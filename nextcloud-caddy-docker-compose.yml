@@ -43,13 +43,10 @@ volumes:
 secrets:
   redis_password:
     file: ./secrets/redis_password.txt
-    mode: 0644  # Lesbar für alle Container-User
   postgres_password:
     file: ./secrets/postgres_password.txt
-    mode: 0644  # Lesbar für alle Container-User
   nextcloud_admin_password:
     file: ./secrets/nextcloud_admin_password.txt
-    mode: 0644  # Lesbar für alle Container-User
 
 services:
   # PostgreSQL Datenbank (nur wenn USE_DOCKER_DB=true in .env)
